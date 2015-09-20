@@ -712,7 +712,7 @@ App.prototype.gridEdit = function(ids,columns,headers,values){
 
 App.prototype.allProducts = function (handler) {
     var request = {
-        category : $("#product_categories").val()
+        category : $("#product_categories").attr("current-item")
     };
     app.xhr({
         data : request,
@@ -794,14 +794,14 @@ App.prototype.allProducts = function (handler) {
                     });
                     
                     //add an edit button for the admin
-                    if (app.dominant_privilege === "pos_admin_service") {
-                        var img = $("<img src='img/edit.png' title='Edit' class='paginate_round_icon' id='paginate_edit_icon'>");
-                        img.click(function () {
-                            //launch the edit grid 
-                            app.gridEdit(resp.ID,columns,headers,values);
-                        });
-                        $("#paginate_button_area").append(img);
-                    }
+//                    if (app.dominant_privilege === "pos_admin_service") {
+//                        var img = $("<img src='img/edit.png' title='Edit' class='paginate_round_icon' id='paginate_edit_icon'>");
+//                        img.click(function () {
+//                            //launch the edit grid 
+//                            app.gridEdit(resp.ID,columns,headers,values);
+//                        });
+//                        $("#paginate_button_area").append(img);
+//                    }
                 }
             });
         }
@@ -1298,8 +1298,8 @@ App.prototype.createProduct = function () {
     }
     var currentQty = parseFloat($("#current_product_quantity").html());
     var changeQty = parseFloat(data.product_quantity.value);
-    var qtyType = $("#product_quantity_type").val();
-    var newQty = qtyType === "increase" ? currentQty + changeQty : currentQty - changeQty;
+    var qtyType = $("#product_quantity_type").html();
+    var newQty = qtyType === "+" ? currentQty + changeQty : currentQty - changeQty;
     newQty = newQty < 0 ? 0 : newQty;
     var requestData = {
         product_name: data.product_name.value,
@@ -1408,8 +1408,8 @@ App.prototype.updateProduct = function () {
     }
     var currentQty = parseFloat($("#current_product_quantity").html());
     var changeQty = parseFloat(data.product_quantity.value);
-    var qtyType = $("#product_quantity_type").val();
-    var newQty = qtyType === "increase" ? currentQty + changeQty : currentQty - changeQty;
+    var qtyType = $("#product_quantity_type").html();
+    var newQty = qtyType === "+" ? currentQty + changeQty : currentQty - changeQty;
     newQty = newQty < 0 ? 0 : newQty;
     var requestData = {
             id: id,
@@ -1761,3 +1761,21 @@ App.prototype.verifyPayBill = function () {
     });
 
 };
+
+
+App.prototype.currentBillTier = function () {
+    app.xhr({
+        data: {},
+        service: "open_data_service",
+        message: "current_bill_tier",
+        load: true,
+        success: function (resp) {
+            var data = resp.response.data;
+            var usage = Math.round(parseFloat(data.cpu_usage) * 100) / 100;
+            var html = "Amount Due : <b>" + data.currency + " " + app.formatMoney(data.amount_due) + "</b><br>Weighted CPU Usage(seconds) : <b>" + usage + "</b>";
+            app.ui.modal(html, "Current Usage Statistics", {cancelText: "Done"});
+        }
+    });
+};
+
+

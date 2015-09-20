@@ -26,8 +26,6 @@ and open the template in the editor.
   background-color: #1d8be8;
   color: white;
   font-size: 20px;
-  border-top-left-radius: 5px;
-  border-bottom-left-radius: 5px;
 }
 
 .search {
@@ -159,11 +157,6 @@ body,html {
 }
 
 
-#content_area {
-    margin-top : 60px;
-}
-
-
 .button_area input {
     margin : 5px;
 }
@@ -178,7 +171,7 @@ label {
     font-size: 18px; 
 }
 
-input[type="text"],input[type="number"],input[type="password"],input[type="email"],select {
+input[type="text"],input[type="number"],input[type="password"],input[type="email"],input[type="date"]{
     height: 40px;
     font-size: 18px;
 }
@@ -187,14 +180,15 @@ input[type="text"],input[type="number"],input[type="password"],input[type="email
 select {
     width: 100%;
     padding: 5px;
-    border-radius: 3px;
     height: 40px;
+    font-size: 18px;
 }
 
 
 form {
     padding: 20px;
     background: white;
+    height : 100%;
 }
 
 .form-control-b { 
@@ -207,7 +201,7 @@ form {
     color: rgb(85, 85, 85);
     background-color: rgb(255, 255, 255);
     background-image: none;
-    border: 1px solid rgb(204, 204, 204);
+    border: 1px solid;
     -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
     box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
     -webkit-transition: border-color ease-in-out .15s,-webkit-box-shadow ease-in-out .15s;
@@ -238,8 +232,7 @@ form {
     padding: 12px;
     border-bottom: 1px solid lightblue;
     cursor: pointer;
-    border-radius: 2px;
-    font-size: 16px;
+    font-size: 18px;
     color:white;
 }
 
@@ -308,13 +301,13 @@ form {
   border-radius: 0px;
   margin: 5px;
   display : block;
-  background-color : rgb(0, 170, 154) !important;
+  background-color : rgb(3, 169, 244) !important;
   color : white !important;
 }
 
 
 .card_touch {
-    border: 1px solid rgb(173, 216, 230);
+  border: 1px solid rgb(173, 216, 230);
   padding: 5px;
   border-radius: 0px;
   background: rgb(255, 255, 255);
@@ -346,13 +339,21 @@ form {
 }
 .table-striped>tbody>tr>th {
     -webkit-user-select: none;
+    font-weight: bold;
 }
 
 .sale_icon {
-    width: 45px;
-    height : 45px;
+    width: 50px;
+    height : 50px;
     border:1px solid;
     font-size: 18px;
+}
+
+#total_amount {
+    visibility: hidden;
+    padding:12px;
+    border:1px solid rgb(0, 170, 154);
+    font-size:18px;
 }
 
 
@@ -361,11 +362,11 @@ form {
 }
 
 #menu_card {
-    margin : 5px;
+    margin-left : 10px;
 }
 
 #product_categories_display{
-      padding: 10px;
+  padding: 10px;
   border: 1px solid rgb(173, 216, 230);
   margin-top: 10px;
 }
@@ -392,4 +393,14 @@ form {
     font-size: 12px;
     color : black;
     margin : 0px;
+}
+
+#title_area {
+   font-size: 24px;
+   margin-left: 10px;
+   margin-top:10px;
+}
+
+input[type="checkbox"] {
+   width : 50px;
 }

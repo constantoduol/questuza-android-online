@@ -2,13 +2,13 @@ App.prototype.loadCategories = function(id,type,filter){
     //load categories from the server
     var request = {
         category_type : type,
-        filter : filter, //product filter
+        filter : filter //product filter
     };
     app.xhr({
         data : request,
         service : app.dominant_privilege,
         message : "product_categories",
-        load : false,
+        load : true,
         cache : true,
         success : function(data){
             //if the user is uncategorized or all show all the categories
@@ -21,13 +21,13 @@ App.prototype.loadCategories = function(id,type,filter){
             else {
                 cats = allCats["PRODUCT_SUB_CATEGORY"];
             }
-            app.loadCats(cats,6,id,type,filter);
+            app.loadCats(cats,id,type,filter);
         }
     });
 };
 
-App.prototype.loadCats = function (cats,max,displayArea,type,filter) {
-    var heightCat = app.getDim()[1] * 0.57;
+App.prototype.loadCats = function (cats,displayArea,type,filter) {
+    var heightCat = app.getDim()[1] * 0.52;
     var heightSale = app.getDim()[1] * 0.3;
     $("#product_category_card").css("height", heightCat + "px");
     $("#current_sale_card").css("height", heightSale + "px");
@@ -73,7 +73,7 @@ App.prototype.loadProducts = function(category,sub_category){
         data : request,
         service : app.dominant_privilege,
         message : "load_products",
-        load : false,
+        load : true,
         cache : true,
         success : function(resp){
             var p = resp.response.data.categorized_products;
@@ -81,12 +81,14 @@ App.prototype.loadProducts = function(category,sub_category){
             $("#category_area").html("");
             $("#product_display_area").html("");
             app.ui.table({
+                id : "products_table",
                 id_to_append: "product_display_area",
                 headers: ["Name", "Price","Available"],
                 values: [p.PRODUCT_NAME,p.SP_UNIT_COST, p.PRODUCT_QTY],
                 include_nums : true,
-                style: "font-size:20px",
+                style: "font-size:16px",
                 class : "table-striped",
+                attributes : {category : category,sub_category : sub_category},
                 onRowClick : function(values,event){
                    //put the product in the sale area;
                    var tr = event.currentTarget;
@@ -133,7 +135,7 @@ App.prototype.calculateTotals = function(){
   });
   $("#total_qty").html(totalQty);
   $("#total_amount").html(app.formatMoney(totalSub));
-  app.generateReceipt();
+  //app.generateReceipt();
   
 };
 
@@ -192,6 +194,14 @@ App.prototype.commitSale = function () {
                 service : app.dominant_privilege,
                 message : "transact",
                 load: true,
+                cache_refresh: {
+                    service: "pos_admin_service",
+                    message: "load_products",
+                    filters: {
+                        category: $("#products_table").attr("category"),
+                        sub_category: $("#products_table").attr("sub_category")
+                    }
+                },
                 success: function (data) {
                     var resp = data.response.data;
                     if (resp.status === "success") {
@@ -373,14 +383,14 @@ App.prototype.todaySales = function (username,category) {
                             }
                             resp.STOCK_COST_SP.push("<b>" + app.formatMoney(totalAmount) + "</b>");
                             resp.STOCK_QTY.push("<b>" + totalQty + "</b>");
-                            resp.PRODUCT_NAME.push("");
+                            resp.PRODUCT_NAME.push(undefined);
                             resp.TRAN_TYPE.push("<b>Totals</b>");
-                            resp.NARRATION.push("");
-                            resp.CREATED.push("");
+                            resp.NARRATION.push(undefined);
+                            resp.CREATED.push(undefined);
                             app.ui.table({
                                 id_to_append: "paginate_body",
-                                headers: ["Product Name", "Entry Type", "Sale Qty", "Amount Received", "Narration", "Entry Time", "Undo Sale", "Cash Received"],
-                                values: [resp.PRODUCT_NAME, resp.TRAN_TYPE, resp.STOCK_QTY, resp.STOCK_COST_SP, resp.NARRATION, resp.CREATED, undos, resp.ID],
+                                headers: ["Product Name", "Entry Type", "Sale Qty", "Amount Received", "Narration", "Entry Time", "Undo Sale"],
+                                values: [resp.PRODUCT_NAME, resp.TRAN_TYPE, resp.STOCK_QTY, resp.STOCK_COST_SP, resp.NARRATION, resp.CREATED, undos],
                                 include_nums: true,
                                 style: "",
                                 mobile_collapse: true,
@@ -388,28 +398,28 @@ App.prototype.todaySales = function (username,category) {
                                     cols: [4],
                                     lengths: [80]
                                 },
-                                transform: {
-                                    7: function (value, index) {
-                                        if (app.dominant_privilege !== "pos_middle_service")
-                                            return;
-                                        var received = cashReceived.META_ID.indexOf(value) > -1 ? "Yes" : "No";
-                                        var href = $("<a href='#'>" + received + "</a>");
-                                        href.click(function () {
-                                            var current = this.innerHTML;
-                                            if (current === "Yes")
-                                                return; //this was added because clients dont want somebody to reverse this
-                                            var isReceived = current === "Yes" ? "No" : "Yes";
-                                            this.innerHTML = isReceived;
-                                            app.xhr({
-                                                data : {trans_id: value, cash_received: isReceived},
-                                                service : app.dominant_privilege,
-                                                message : "note_cash_received",
-                                                load: false
-                                            });
-                                        });
-                                        return href;
-                                    }
-                                }
+//                                transform: {
+//                                    7: function (value, index) {
+//                                        if (app.dominant_privilege !== "pos_middle_service")
+//                                            return;
+//                                        var received = cashReceived.META_ID.indexOf(value) > -1 ? "Yes" : "No";
+//                                        var href = $("<a href='#'>" + received + "</a>");
+//                                        href.click(function () {
+//                                            var current = this.innerHTML;
+//                                            if (current === "Yes")
+//                                                return; //this was added because clients dont want somebody to reverse this
+//                                            var isReceived = current === "Yes" ? "No" : "Yes";
+//                                            this.innerHTML = isReceived;
+//                                            app.xhr({
+//                                                data : {trans_id: value, cash_received: isReceived},
+//                                                service : app.dominant_privilege,
+//                                                message : "note_cash_received",
+//                                                load: false
+//                                            });
+//                                        });
+//                                        return href;
+//                                    }
+//                                }
                             });
                         }
                     });
@@ -421,51 +431,17 @@ App.prototype.todaySales = function (username,category) {
 
 
 App.prototype.loadSaleSearch = function(){
-    var heightCat = app.getDim()[1] * 0.57;
-    var heightSale = app.getDim()[1] * 0.3;
+    var heightCat = app.getDim()[1] * 0.47;
+    var heightSale = app.getDim()[1] * 0.4;
     $("#product_category_card").css("height", heightCat + "px");
     $("#current_sale_card").css("height", heightSale + "px");
-    var html = "<div class='input-group' style='margin-top:20px'>" +
-            "<input type='text'  id='item_code' placeholder='Code' style='height:70px;width:10%;font-size:30px'>"+
-            "<input type='text'  id='search_products' placeholder='Search Products' style='height:70px;width:90%;font-size:30px'>" +
+    var html = "<div class='input-group' style='margin-top:5px'>" +
+            "<input type='text'  id='search_products' placeholder='Search Products' style='height:50px;font-size:20px'>" +
             "<div class='input-group-addon search' id='search_link'>" +
-            "<img src='img/search.png' alt='Search Products' style='width:40px'> </div> </div>";
+            "<img src='img/search.png' alt='Search Products' style='width:30px'> </div> </div>";
     $("#product_category_card").html(html);
     $("#search_link").click(function(){
         app.allProducts(app.pages.sale);
-    });
-    $("#search_products").bind('keyup', 'return', function () {
-        if($("#search_products").val().trim().length === 0 ){
-            app.commitSale();
-            $("#search_products").focus();
-        }
-    });
-    $("#item_code").bind('keyup', 'return', function () {
-        if ($("#item_code").val().trim().length === 0) {
-            app.commitSale();
-            $("#item_code").focus();
-        }
-        else {
-          app.saleByCode();
-        }
-    });
-    
-    $(document).bind('keyup', 'shift+k', function () {
-         $("#item_code").focus();
-    });
-    
-    $(document).bind('keyup', 'shift+p', function () {
-         $("#search_products").focus();
-    });
-    
-    $(document).bind('keyup', 'shift+c', function () {
-         app.clearSale();
-    });
-    $("#item_code").bind('keyup', 'shift+c', function () {
-         app.clearSale();
-    });
-    $("#search_products").bind('keyup', 'shift+c', function () {
-         app.clearSale();
     });
     app.setUpAuto(app.context.product.fields.search_products);  
 };
@@ -475,11 +451,22 @@ App.prototype.sale = function(options){
     $("#total_qty").css("visibility", "visible");
     $("#total_amount").css("visibility", "visible");
     $("#clear_sale_link").css("visibility", "visible");
-    var values =   [options.data[0], 
-                    [1], 
-                    options.data[1], 
-                    options.data[1], 
-                    options.ids];
+    var values;
+    var userInterface = app.getSetting("user_interface");
+    if (userInterface === "touch") {
+        values = [options.data[0],
+            [1],
+            options.data[1],
+            options.data[1],
+            options.ids];
+    }
+    else if (userInterface === "desktop") {
+        values = [options.data.PRODUCT_NAME,
+            [1],
+            options.data.SP_UNIT_COST,
+            options.data.SP_UNIT_COST,
+            options.ids];
+    }
     var saleArea = $("#sale_summary");
     var currentId = options.ids[options.index];
     
@@ -490,7 +477,7 @@ App.prototype.sale = function(options){
         //var priceSpan = "<span id=price_" + currentId + ">" + app.formatMoney(values[2][options.index]) + "</span>";
         console.log("values : "+values[2][options.index]);
         var subSpan = "<span id=sub_" + currentId + " class='subs'>" + app.formatMoney(values[2][options.index]) + "</span>";
-        var img = $("<img src='img/cancel.png' style='height:30px;background:red'>");
+        var img = $("<img src='img/cancel.png' style='height:20px;background:red;margin-left:10px'>");
         var tr = $("<tr>");
         img.click(function () {
             img.parent().parent().remove();
@@ -511,7 +498,7 @@ App.prototype.sale = function(options){
             headers: ["Name", "Qty", "Subtotal", "Remove"],
             values: [[],[],[],[]],
             include_nums: false,
-            style: "font-size:20px",
+            style: "font-size:16px",
             class: "table-striped"
         });
         appendItem();

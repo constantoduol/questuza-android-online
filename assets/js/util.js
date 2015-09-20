@@ -230,4 +230,37 @@ App.prototype.deepEquals = function (x, y) {
 
 };
 
+App.prototype.toggleSwitch = function(options){
+    var currentValue = $("#"+options.id).html().trim();
+    var currentIndex = options.toggle_values.indexOf(currentValue);
+    var newIndex = currentIndex === 0 ? 1 : 0;
+    $("#"+options.id).html(options.toggle_values[newIndex]);
+    if(options.colors){
+        var color = options.colors[newIndex];
+        $("#"+options.id).css("background-color",color);
+    }
+};
+
+
+App.prototype.launchSelect = function (options) {
+    var currentValue = $("#" + options.id).attr("current-item");
+    //options.values, options.html
+    var m = app.ui.modal("",options.title,{cancelText : "Cancel"});
+    var area = $("#modal_content_area");
+    var contDiv = $("<div style='padding:10px;font-size:20px'></div>");
+    $.each(options.values,function(x){
+        var value = options.values[x];
+        var html = options.html[x];
+        var div = $("<div class='long_link'>"+html+"</div>");
+        if(value === currentValue) div.css("background-color","orange");
+        div.click(function () {
+            $("#" + options.id).attr("current-item", value);
+            m.modal('hide');
+        });
+        contDiv.append(div);
+    });
+    area.append(contDiv);
+};
+
+
 

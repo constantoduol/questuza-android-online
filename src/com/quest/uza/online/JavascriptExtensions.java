@@ -1,6 +1,10 @@
 package com.quest.uza.online;
 
 import android.webkit.JavascriptInterface;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 
 
@@ -26,5 +30,14 @@ public class JavascriptExtensions {
    @JavascriptInterface
     public String loadPage(String url){
         return MainActivity.getInstance().loadPage(url);
+    }
+    
+    @JavascriptInterface
+    public void setCurrentMenu(String menu) {
+        try {
+            MainActivity.getInstance().setCurrentMenu(new JSONObject(menu));
+        } catch (JSONException ex) {
+            Logger.getLogger(JavascriptExtensions.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 }

@@ -109,8 +109,10 @@ AppData.prototype.onload = {
         this["/index.html"]();
     },
     "/views/billing.html": function () {
-        $("#billing_pay_btn").click(app.payBill);
-        $("#billing_history_btn").click(app.billingHistory);
+        var currentMenu = {menu: {"Billing History": app.billingHistory, "Pay Bill": app.payBill,
+                "Current Bill Tier" : app.currentBillTier}, params: {display_area: "billing_card", inline: true}};
+        app.setCurrentMenu(currentMenu);
+        $("#title_area").html("Billing");
     },
     "/views/pay_bill.html": function () {
         $("#verify_trans_btn").click(app.verifyPayBill);
@@ -127,12 +129,12 @@ AppData.prototype.onload = {
         $("#product_display_area").html("");
         $("#category_area").html("");
         app.fetchBusinessSettings();
-        app.getSetting("user_interface") === "desktop" ? app.loadSaleSearch() : app.loadCategories("category_area", "category","");
-        
+        app.getSetting("user_interface") === "desktop" ? app.loadSaleSearch() : app.loadCategories("category_area", "category", "");
+
         $("#home_link").click(function () {
             $("#category_area").html("");
             $("#product_display_area").html("");
-            app.getSetting("user_interface") === "desktop" ? app.loadSaleSearch() : app.loadCategories("category_area", "category","");
+            app.getSetting("user_interface") === "desktop" ? app.loadSaleSearch() : app.loadCategories("category_area", "category", "");
         });
 
         $("#clear_sale_link").click(function () {
@@ -162,9 +164,9 @@ AppData.prototype.onload = {
                 });
 
                 app.xhr({
-                    data : {category_type: "category"},
-                    service : "" + app.dominant_privilege + "," + app.dominant_privilege + "",
-                    message : "all_users,product_categories",
+                    data: {category_type: "category"},
+                    service: "" + app.dominant_privilege + "," + app.dominant_privilege + "",
+                    message: "all_users,product_categories",
                     load: false,
                     success: function (data) {
                         var key = app.dominant_privilege + "_all_users";
@@ -201,6 +203,14 @@ AppData.prototype.onload = {
                 });
             }
         }
+        var currentMenu = {menu: {
+                "Sign Out": "app.logout()",
+                "Today's Sales": "app.todaySales(app.appData.formData.login.current_user.name, 'all')"},
+            params: {
+                display_area: "content_area"
+            }};
+        //app.setCurrentMenu(currentMenu);
+        jse.setCurrentMenu(JSON.stringify(currentMenu));
     },
     "/admin.html": function () {
         app.context = app.appData.formData.admin;
@@ -224,17 +234,18 @@ AppData.prototype.onload = {
 
         //check billing and settings
         app.xhr({
-            data : {},
-            service : "open_data_service,open_data_service",
-            message : "fetch_account_balance,fetch_settings",
+            data: {},
+            service: "open_data_service,open_data_service",
+            message: "fetch_account_balance,fetch_settings",
             load: false,
             success: function (resp) {
                 var amount = parseFloat(resp.response.open_data_service_fetch_account_balance.data.balance);
                 var timestamp = parseInt(resp.response.open_data_service_fetch_account_balance.data.timestamp);
                 var diff = $.now() - timestamp;
-                if (amount > 0 && diff > 604800000) { //one week after invoicing
+                if (amount > 0 && diff > 259200000) { //3 days after invoicing
                     //tell the user about this
-                    var m = app.ui.modal("Your account is in arrears<br>Please pay your bill<br> Amount Due : Kshs " + app.formatMoney(amount) + "", "Billing", {
+                    var m = app.ui.modal("Your account is in arrears<br>Please pay your bill<br>" +
+                            "Amount Due : Kshs " + app.formatMoney(amount) + "", "Billing", {
                         okText: "Pay Now",
                         cancelText: "Pay Later",
                         ok: function () {
@@ -242,7 +253,7 @@ AppData.prototype.onload = {
                             app.loadPage({
                                 load_url: app.pages.billing,
                                 load_area: 'content_area',
-                                onload : function(){
+                                onload: function () {
                                     $("#billing_pay_btn").click();
                                 }
                             });
@@ -252,50 +263,70 @@ AppData.prototype.onload = {
                         }
                     });
                 }
-                
+
                 var r = resp.response.open_data_service_fetch_settings.data;
                 localStorage.setItem("settings", JSON.stringify(r));
-                
+
             }
+        });
+
+        var currentMenu = {
+                "Products": function () {
+                    app.loadPage({load_url: app.pages.products, load_area: 'content_area'});
+                },
+                "Users": function () {
+                    app.loadPage({load_url: app.pages.users, load_area: 'content_area'});
+                },
+                "Business": function () {
+                    app.loadPage({load_url: app.pages.business, load_area: 'content_area'});
+                },
+                "Billing": function () {
+                    app.loadPage({load_url: app.pages.billing, load_area: 'content_area'});
+                },
+                "Suppliers": function () {
+                    app.loadPage({load_url: app.pages.suppliers, load_area: 'content_area'});
+                },
+                "Incomes and Expenses": function () {
+                    app.loadPage({load_url: app.pages.expenses, load_area: 'content_area'});
+                },
+                "Reports": function () {
+                    app.loadPage({load_url: app.pages.reports, load_area: 'content_area'});
+                },
+                "Sign Out" : function(){
+                    app.logout();
+                }
+        };
+        $("#menu_link").click(function () {
+            app.showModalMenu(currentMenu);
         });
     },
     "/views/user.html": function () {
         app.sub_context = app.context.user;
-        $("#create_user_btn").click(app.createUser);
-        $("#update_user_btn").click(app.updateUser);
-        $("#delete_user_btn").click(function () {
-            app.generalUserRequest("delete_user");
-        });
-        $("#disable_user_btn").click(function () {
-            app.generalUserRequest("disable_user");
-        });
-        $("#enable_user_btn").click(function () {
-            app.generalUserRequest("enable_user");
-        });
-        $("#reset_user_btn").click(app.resetPassword);
-        $("#add_category_btn").click(app.addProductCategory);
         $("#search_link").click(app.allUsers);
         app.setUpAuto(app.context.user.fields.search_users);
-//        app.xhr({category_type: "category"}, app.dominant_privilege, "product_categories", {
-//            load: false,
-//            success: function (resp) {
-//                var r = resp.response.data.PRODUCT_CATEGORY;
-//                $.each(r, function (index) {
-//                    var cat = r[index];
-//                    $("#product_categories").append($("<option value=" + cat + ">" + cat + "</option>"));
-//                });
-//            }
-//        });
-
+        var currentMenu = {menu: {"Create User": app.createUser,
+                "Update User": app.updateUser,
+                "Delete User": function () {
+                    app.generalUserRequest('delete_user');
+                },
+                "Disable User": function () {
+                    app.generalUserRequest('disable_user');
+                },
+                "Enable User": function () {
+                    app.generalUserRequest('enable_user');
+                },
+                "Reset Password": app.resetPassword},
+            params: {display_area: "content_area"}};
+        app.setCurrentMenu(currentMenu);
+        $("#title_area").html("Users");
     },
     "/views/product.html": function () {
         app.sub_context = app.context.product;
-        $("#create_product_btn").click(app.createProduct);
-        $("#update_product_btn").click(app.updateProduct);
-        $("#delete_product_btn").click(app.deleteProduct);
-        $("#supplier_product_btn").click(app.supplierSelect);
         $("#search_link").click(function () {
             app.allProducts(app.pages.products);
+        });
+        $("#product_quantity_type").click(function () {
+            app.toggleSwitch({id : "product_quantity_type",toggle_values : ["+","-"], colors : ["green","red"]});
         });
         app.setUpAuto(app.context.product.fields.search_products);
         app.setUpAuto(app.context.product.fields.product_category);
@@ -303,29 +334,30 @@ AppData.prototype.onload = {
         app.setUpAuto(app.context.product.fields.product_parent);
         app.setUpDate("product_expiry_date", true); //has limit
         app.xhr({
-            data : {category_type: "category"},
-            service : app.dominant_privilege,
-            message : "product_categories",
+            data: {category_type: "category"},
+            service: app.dominant_privilege,
+            message: "product_categories",
             load: false,
-            cache : true,
+            cache: true,
             success: function (resp) {
                 var r = resp.response.data.PRODUCT_CATEGORY;
-                if(!r) return;
-                $("#product_categories").html("");
-                $("#product_categories").append($("<option value='all'>All Categories</option>"));
-                $.each(r, function (index) {
-                    var cat = r[index];
-                    $("#product_categories").append($("<option value=" + cat + ">" + cat + "</option>"));
-                });
+                if (!r) return;
+                 r.unshift("all");
+                 $("#product_categories").click(function(){
+                     app.launchSelect({id : "product_categories",title : "Product Categories",values : r,html : r}); 
+                 });
             }
         });
+        var currentMenu = {menu: {"Create Product": app.createProduct,
+                "Update Product": app.updateProduct,
+                "Delete Product": app.deleteProduct,
+                "Suppliers": app.supplierSelect},
+            params: {display_area: "content_area"}};
+        app.setCurrentMenu(currentMenu);
+        $("#title_area").html("Products");
     },
     "/views/service_product.html": function () {
         app.sub_context = app.context.service_product;
-        $("#create_product_btn").click(app.createProduct);
-        $("#update_product_btn").click(app.updateProduct);
-        $("#delete_product_btn").click(app.deleteProduct);
-        $("#supplier_product_btn").click(app.supplierSelect);
         $("#search_link").click(function () {
             app.allProducts(app.pages.products);
         });
@@ -338,14 +370,15 @@ AppData.prototype.onload = {
             $("#product_quantity_label").remove();
         }
         app.xhr({
-            data : {category_type: "category"},
-            service : app.dominant_privilege,
-            message : "product_categories",
+            data: {category_type: "category"},
+            service: app.dominant_privilege,
+            message: "product_categories",
             load: false,
-            cache : true,
+            cache: true,
             success: function (resp) {
                 var r = resp.response.data.PRODUCT_CATEGORY;
-                if(!r) return;
+                if (!r)
+                    return;
                 $("#product_categories").html("");
                 $("#product_categories").append($("<option value='all'>All</option>"));
                 $.each(r, function (index) {
@@ -354,6 +387,13 @@ AppData.prototype.onload = {
                 });
             }
         });
+        var currentMenu = {menu: {"Create Product": app.createProduct,
+                "Update Product": app.updateProduct,
+                "Delete Product": app.deleteProduct,
+                "Suppliers": app.supplierSelect},
+            params: {display_area: "content_area"}};
+        app.setCurrentMenu(currentMenu);
+        $("#title_area").html("Products");
     },
     "/views/supplier_select.html": function () {
         app.setUpAuto(app.context.suppliers.fields.search_suppliers);
@@ -361,15 +401,6 @@ AppData.prototype.onload = {
     "/views/suppliers.html": function () {
         app.sub_context = app.context.suppliers;
         app.setUpAuto(app.context.suppliers.fields.search_suppliers);
-        $("#save_supplier_btn").click(function () {
-            app.supplierAction("create");
-        });
-        $("#update_supplier_btn").click(function () {
-            app.supplierAction("update");
-        });
-        $("#delete_supplier_btn").click(function () {
-            app.supplierAction("delete");
-        });
         $("#search_link").click(app.allSuppliers);
         $("#country").html("");
         $.each(app.nations, function (index) {
@@ -377,20 +408,21 @@ AppData.prototype.onload = {
             $("#country").append($("<option value=" + nation + ">" + nation + "</option>"));
         });
 
+        var currentMenu = {menu: {"Create Supplier": function () {
+                    app.supplierAction('create');
+                },
+                "Update Supplier": function () {
+                    app.supplierAction('update');
+                },
+                "Delete Supplier": function () {
+                    app.supplierAction('delete');
+                }
+            }, params: {display_area: "content_area"}};
+        app.setCurrentMenu(currentMenu);
+        $("#title_area").html("Suppliers");
+
     },
     "/views/business.html": function () {
-        $("#save_business_btn").click(function () {
-            app.saveBusiness("create");
-        });
-        $("#update_business_btn").click(function () {
-            app.saveBusiness("update");
-        });
-        $("#delete_business_btn").click(function () {
-            app.saveBusiness("delete");
-        });
-        
-        $("#settings_business_btn").click(app.loadSettings);
-        
         $("#country").html("");
         $.each(app.nations, function (index) {
             var nation = app.nations[index];
@@ -404,9 +436,9 @@ AppData.prototype.onload = {
         });
         //load all values for business
         app.xhr({
-            data : {},
-            service : "open_data_service",
-            message : "business_data",
+            data: {},
+            service: "open_data_service",
+            message: "business_data",
             load: true,
             success: function (data) {
                 var resp = data.response.data;
@@ -422,6 +454,25 @@ AppData.prototype.onload = {
 
             }
         });
+
+        var currentMenu = {menu: {"Create Business": function () {
+                    app.saveBusiness('create');
+                },
+                "Update Business": function () {
+                    app.saveBusiness('update');
+                },
+                "Delete Business": function () {
+                    app.saveBusiness('delete');
+                },
+                "Settings": function () {
+                    app.loadSettings();
+                }
+            },
+            params: {display_area: "content_area"}};
+        app.setCurrentMenu(currentMenu);
+        $("#title_area").html("Business");
+
+
     },
     "/views/expenses.html": function () {
         app.sub_context = app.context.expense;
@@ -430,6 +481,7 @@ AppData.prototype.onload = {
         app.setUpDate("end_date"); //no limit
         $("#profit_and_loss_btn").click(app.profitAndLoss);
         app.setUpAuto(app.context.expense.fields.expense_name);
+        $("#title_area").html("Incomes and Expenses");
     },
     "/change.html": function () {
         $("#user_name").val(app.getUrlParameter("user_name"));
@@ -437,13 +489,6 @@ AppData.prototype.onload = {
     },
     "/views/reports.html": function () {
         app.sub_context = app.context.reports;
-        $("#stock_history_btn").click(app.stockHistory);
-        $("#stock_expiry_btn").click(function () {
-            app.stockExpiry(app.pages.reports);
-        });
-        $("#stock_low_btn").click(function () {
-            app.stockLow(app.pages.reports);
-        });
         $("#search_link").click(function () {
             app.allProducts(app.pages.reports);
         });
@@ -474,9 +519,9 @@ AppData.prototype.onload = {
         });
         //load all users
         app.xhr({
-            data : {category_type: "category"},
-            service : "" + app.dominant_privilege + "," + app.dominant_privilege + "," + app.dominant_privilege + "",
-            message : "all_users,all_suppliers,product_categories",
+            data: {category_type: "category"},
+            service: "" + app.dominant_privilege + "," + app.dominant_privilege + "," + app.dominant_privilege + "",
+            message: "all_users,all_suppliers,product_categories",
             load: false,
             success: function (data) {
                 var key = app.dominant_privilege + "_all_users";
@@ -505,5 +550,15 @@ AppData.prototype.onload = {
                 });
             }
         });
+        var currentMenu = {menu: {"Generate Report": app.stockHistory,
+                "Stock Expiry": function () {
+                    app.stockExpiry(app.pages.reports);
+                },
+                "Stock Low": function () {
+                    app.stockLow(app.pages.reports)
+                }},
+            params: {display_area: "content_area", inline: true}};
+        app.setCurrentMenu(currentMenu);
+        $("#title_area").html("Reports");
     }
 };

@@ -4,6 +4,9 @@ package com.quest.uza.online;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.MenuItem.OnMenuItemClickListener;
 import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -11,7 +14,9 @@ import android.webkit.WebView;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Iterator;
 import java.util.Random;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
     
@@ -19,9 +24,11 @@ public class MainActivity extends Activity {
     
     private static Database db;
     
-    private static String SERVER_ADDRESS = "https://test-quest-uza.appspot.com";
+    private static String SERVER_ADDRESS = "https://quest-uza.appspot.com/server";//production
     
     private static MainActivity instance;
+    
+    private JSONObject currentMenu;
     
     
        @Override
@@ -85,6 +92,30 @@ public class MainActivity extends Activity {
     
     public static MainActivity getInstance(){
         return instance;
+    }
+    
+    public void setCurrentMenu(JSONObject obj){
+        currentMenu = obj;
+    }
+    
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        menu.clear();
+        if(currentMenu != null){
+            final JSONObject menuList = currentMenu.optJSONObject("menu");
+            Iterator<String> iter = menuList.keys();
+            while(iter.hasNext()){
+                final String menuItem = iter.next();
+                menu.add(menuItem).setOnMenuItemClickListener(new OnMenuItemClickListener() {
+                    @Override
+                    public boolean onMenuItemClick(MenuItem arg0) {
+                        wv.loadUrl("javascript:"+menuList.optString(menuItem));
+                        return false;
+                    }
+                });
+            }
+        }
+        return super.onPrepareOptionsMenu(menu);
     }
     
     

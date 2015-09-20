@@ -8,7 +8,7 @@ function App() {
     this.ui = new UI();
     this.dominant_privilege = "";
     this.savedState = "";
-    this.server = "https://test-quest-uza.appspot.com/server";
+    this.server = "https://quest-uza.appspot.com/server";//points to production
     this.platform = this.isMobile() ? "mobile" : "web";
 }
 
@@ -23,13 +23,15 @@ App.prototype.isMobile = function(){
 App.prototype.xhr = function (options) {
     var request = {};
     request.request_header = {};
+    var originalService = options.service;
+    var originalMessage = options.message;
     request.request_header.request_svc = options.service;
     request.request_header.request_msg = options.message;
     request.request_header.session_id = localStorage.getItem("session_id");
     options.data.business_id = localStorage.getItem("business_id");
     request.request_object = options.data;
-    var key = options.service + "_" +options.message;
-    if(options.cache){
+    var key = options.service + "_" + options.message;
+    if (options.cache) {
         //this tells us that we can serve local data if we have it
         //no need for round trips to the server
         //first we check if we have matching service, message and filters locally
@@ -39,18 +41,18 @@ App.prototype.xhr = function (options) {
         if (cacheString) {
             //var cache = { cache_filters : [{category : 'food'}] , cache_data : [{PRODUCT_NAME : ['milk','bread']}],timestamp : 14153333}
             var cache = JSON.parse(cacheString);
-            for(var x = 0; x < cache.cache_filters.length; x++){
+            for (var x = 0; x < cache.cache_filters.length; x++) {
                 var equals = app.deepEquals(cache.cache_filters[x], options.data);//we know that this is data for the same request if they are equal
-                if(equals){
+                if (equals) {
                     //get the cache data
-                    console.log("cached result for : "+key);
+                    console.log("cached result for : " + key);
                     options.success(cache.cache_data[x]);//trigger an xhr success
                     return;
                 }
             }
         }
-      //we didnt find a match in the cache so do a full server request  
-       
+        //we didnt find a match in the cache so do a full server request  
+
     }
     if (options.load) {
         var loadArea = $("#" + app.context.load_area);
@@ -59,13 +61,20 @@ App.prototype.xhr = function (options) {
         var loader = $("<img src='img/loader.gif' style='width:60px;height:60px;'>");
         loadArea.html(loader);
     }
+
+    if (options.cache_refresh) {
+        //refresh the local cache via a downstream link
+        request.request_header.request_svc = request.request_header.request_svc + "," + options.cache_refresh.service;
+        request.request_header.request_msg = request.request_header.request_msg + "," + options.cache_refresh.message;
+        $.extend(request.request_object, options.cache_refresh.filters);//merge what is in cache refresh filters to request_object
+    }
+
     return $.ajax({
         type: "POST",
         url: app.server,
         data: "json=" + encodeURIComponent(JSON.stringify(request)),
         dataFilter: function (data, type) {
             if (options.load) {
-//                loadArea.html("");
                 loadArea.css("padding-top", "0px");
                 loadArea.removeClass("loading");
                 loadArea.html("");
@@ -77,45 +86,82 @@ App.prototype.xhr = function (options) {
             }
             return data;
         },
-        success: function(data){
-            if(options.success) options.success(data);
+        success: function (data) {
+            if (options.cache_refresh) {
+                //transform the data to suit the original request and update the required cache
+                //structure of data without cache refresh is data.response.data;
+                //structure of data with cache refresh is data.response.service_message.data
+                //cache refresh does not support where the original request contains more than one service and message
+                var cont1 = {response: {data: ""}};
+                var cont2 = {response: {data: ""}};
+                var refreshKey = options.cache_refresh.service + "_" + options.cache_refresh.message;
+                cont1.response.data = data.response[originalService + "_" + originalMessage].data;
+                cont1.response._cache_status_ = data.response._cache_status_;
+                cont2.response.data = data.response[refreshKey].data;
+                data = cont1;
+
+                //expire the local cache using cont2
+                options.cache_refresh.filters.business_id = localStorage.getItem("business_id");
+                var cacheString = localStorage.getItem(refreshKey);
+                if (cacheString) {
+                    var cache = JSON.parse(cacheString);
+                    for (var x = 0; x < cache.cache_filters.length; x++) {
+                        var equals = app.deepEquals(cache.cache_filters[x], options.cache_refresh.filters);
+                        if (equals) {
+                            //get the cache data
+                            cache.cache_data[x] = cont2;
+                            //make the timestamp show that we have new data
+                            cache.timestamp = $.now();
+                            console.log("cached refresh for : " + refreshKey);
+                            localStorage.setItem(refreshKey, JSON.stringify(cache));
+                            break;
+                        }
+                    }
+                }
+
+
+            }
+
+            if (options.success)
+                options.success(data);
             //if we reached here and options.cache is true it means we 
             //didnt have data in the local cache and had to do a server request
             //so now we construct our local cache
-            if(options.cache){
+            if (options.cache) {
                 //check that it exists first
                 var cacheString = localStorage.getItem(key);
-                if(cacheString){
+                if (cacheString) {
                     var cache = JSON.parse(cacheString);
                     //we have a cache, so just append the current request
                     cache.cache_filters.push(options.data);
                     cache.cache_data.push(data);
                     cache.timestamp = $.now();
-                    localStorage.setItem(key,JSON.stringify(cache));
+                    localStorage.setItem(key, JSON.stringify(cache));
                 }
                 else {
                     //whoops we dont have a cache yet, create one
-                    var cache = { cache_filters : [options.data] , cache_data : [data] ,timestamp : $.now()};
-                    localStorage.setItem(key,JSON.stringify(cache));
+                    var cache = {cache_filters: [options.data], cache_data: [data], timestamp: $.now()};
+                    localStorage.setItem(key, JSON.stringify(cache));
                 }
             }
             //expire any existing mappings
-            
-            $.each(data.response._cache_status_,function(key){
+
+            $.each(data.response._cache_status_, function (key) {
                 var localTimestamp = !localStorage.getItem(key) ? Infinity : JSON.parse(localStorage.getItem(key)).timestamp;
                 var serverTimestamp = parseInt(data.response._cache_status_[key]);
-                if(serverTimestamp > localTimestamp){ //if change on server is more recent than data we have here
+                if (serverTimestamp > localTimestamp) { //if change on server is more recent than data we have here
                     localStorage.removeItem(key);
                 }
             });
         },
-        error: function(err){
+        error: function (err) {
             if (options.load) {
                 loadArea.css("padding-top", "0px");
                 loadArea.removeClass("loading");
                 loadArea.html("");
             }
-            if(options.error) options.error(err);
+            if (options.error)
+                options.error(err);
         }
     });
 };
@@ -399,12 +445,6 @@ App.prototype.autocomplete = function (field, func) {
 
 
 App.prototype.showMessage = function (msg) {
-//    var errorSpace = $("#" + app.context.error_space);
-//    errorSpace.html(msg);
-//    app.scrollTo(errorSpace.attr('id'));
-//    app.runLater(5000, function () {
-//        $("#" + app.context.error_space).html("");
-//    });
     app.briefShow({
         title: "Info",
         content: msg,
@@ -508,6 +548,45 @@ App.prototype.briefShow = function (options) {
     app.runLater(delay, function () {
         m.modal('hide');
     });
+};
+
+App.prototype.showModalMenu = function(menu){
+    var m = app.ui.modal("","Menu",{cancelText : "Cancel"});
+    var contDiv = $("#modal_content_area");
+    $.each(menu, function (menuItem) {
+        var clickHandler = menu[menuItem];
+        var div = $("<div class='long_link'>" + menuItem + "</div>");
+        div.click(clickHandler);
+        div.click(function(){
+            m.modal('hide');
+        });
+        contDiv.append(div);
+    });
+};
+
+App.prototype.setCurrentMenu = function(options){
+    var menu = options.menu;
+    var params = options.params;
+    var areaToAppend = $("#" + params.display_area);
+    var contDiv = $("<div id='_menu_area_'></div>");
+    if($("#_menu_area_")[0]) $("#_menu_area_").remove(); //we already have a menu, remove and add new one
+    if(params.inline){
+        $.each(menu, function (menuItem) {
+            var clickHandler = menu[menuItem];
+            var div = $("<div class='long_link'>" + menuItem + "</div>");
+            div.click(clickHandler);
+            contDiv.append(div);
+        });
+        areaToAppend.append(contDiv);
+    }
+    else {
+        contDiv.html("Menu");
+        contDiv.addClass("long_link");
+        contDiv.click(function () {
+            app.showModalMenu(menu);
+        });
+        areaToAppend.append(contDiv);
+    }
 };
 
 
