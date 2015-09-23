@@ -109,6 +109,8 @@ UI.prototype.table = function (options) {
                 UI.prototype.collapsible(options.id_to_append, options.values[0][x], html);
             }
         }
+        if (options.onRender)
+            options.onRender();
         return;
     }
 

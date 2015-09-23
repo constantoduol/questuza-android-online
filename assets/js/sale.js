@@ -194,12 +194,63 @@ App.prototype.commitSale = function () {
                 service : app.dominant_privilege,
                 message : "transact",
                 load: true,
-                cache_refresh: {
-                    service: "pos_admin_service",
-                    message: "load_products",
-                    filters: {
-                        category: $("#products_table").attr("category"),
-                        sub_category: $("#products_table").attr("sub_category")
+                cache_update: {
+                    entity: "PRODUCT_DATA",
+                    columns: ["ID", "PRODUCT_QTY"],
+                    cache_key: "pos_sale_service_all_products",
+                    where_cols: function () {
+                        return [];
+                    },
+                    where_values: function () {
+                        return [];
+                    },
+                    updater: function (data, cache) {
+                        //we go through the product
+                        var userInterface = app.getSetting("user_interface");
+                        var updatedProductData = data.response.data;
+                        if (userInterface === "desktop") {
+                            $.each(cache.cache_data, function (x) {
+                                var cacheData = cache.cache_data[x];
+                                var productData = cacheData.response.data;
+                                $.each(productData.ID, function (y) {
+                                    var prodId = productData.ID[y];
+                                    var prodIndex = updatedProductData.ID.indexOf(prodId);
+                                    var updatedQty = updatedProductData.PRODUCT_QTY[prodIndex];
+                                    productData.PRODUCT_QTY[y] = parseFloat(updatedQty);
+                                });
+                            });
+                            return cache;
+                        }
+                        else if (userInterface === "touch") {
+                            //manually update the quantities if we are using the touch/category based interface
+                            //get the cache used by the touch interface
+                            var cachekey = app.dominant_privilege + "_load_products";
+                            var cacheString = localStorage.getItem(cachekey);
+                            if (cacheString) {
+                                //we have the cache string 
+                                var touchCache = JSON.parse(cacheString);
+                                $.each(touchCache.cache_data, function (x) {
+                                    var cacheData = touchCache.cache_data[x];
+                                    var allProductData = cacheData.response.data.all_products;
+                                    var catProductData = cacheData.response.data.categorized_products;
+                                    $.each(allProductData.ID, function (y) {
+                                        var allProdId = allProductData.ID[y];
+                                        var allProdIndex = updatedProductData.ID.indexOf(allProdId);
+                                        var allUpdatedQty = updatedProductData.PRODUCT_QTY[allProdIndex];
+                                        allProductData.PRODUCT_QTY[y] = parseFloat(allUpdatedQty);
+
+                                        var catProdId = catProductData.ID[y];
+                                        if (!catProdId)
+                                            return;
+                                        var catProdIndex = updatedProductData.ID.indexOf(catProdId);
+                                        var catUpdatedQty = updatedProductData.PRODUCT_QTY[catProdIndex];
+                                        catProductData.PRODUCT_QTY[y] = parseFloat(catUpdatedQty);
+                                    });
+                                });
+                                localStorage.setItem(cachekey, JSON.stringify(touchCache));
+                            }
+
+                        }
                     }
                 },
                 success: function (data) {
@@ -381,12 +432,7 @@ App.prototype.todaySales = function (username,category) {
                                 totalQty = totalQty + qty;
                                 totalAmount = totalAmount + amount;
                             }
-                            resp.STOCK_COST_SP.push("<b>" + app.formatMoney(totalAmount) + "</b>");
-                            resp.STOCK_QTY.push("<b>" + totalQty + "</b>");
-                            resp.PRODUCT_NAME.push(undefined);
-                            resp.TRAN_TYPE.push("<b>Totals</b>");
-                            resp.NARRATION.push(undefined);
-                            resp.CREATED.push(undefined);
+
                             app.ui.table({
                                 id_to_append: "paginate_body",
                                 headers: ["Product Name", "Entry Type", "Sale Qty", "Amount Received", "Narration", "Entry Time", "Undo Sale"],
@@ -398,6 +444,9 @@ App.prototype.todaySales = function (username,category) {
                                     cols: [4],
                                     lengths: [80]
                                 },
+                                onRender: function () {
+                                    $("#paginate_body").append("<table class='table table-condensed'><tr><th>Total Qty</th><th>Total Amount</th></tr><tr><td>" + totalQty + "</td><td> "+ app.formatMoney(totalAmount) + "</b></td></tr></table>");
+                                }
 //                                transform: {
 //                                    7: function (value, index) {
 //                                        if (app.dominant_privilege !== "pos_middle_service")
@@ -430,20 +479,19 @@ App.prototype.todaySales = function (username,category) {
 };
 
 
-App.prototype.loadSaleSearch = function(){
-    var heightCat = app.getDim()[1] * 0.47;
-    var heightSale = app.getDim()[1] * 0.4;
-    $("#product_category_card").css("height", heightCat + "px");
+App.prototype.loadSaleSearch = function () {
+    var heightSale = app.getDim()[1] * 0.67;
+    $("#product_category_card").css("overflow", "inherit");
     $("#current_sale_card").css("height", heightSale + "px");
     var html = "<div class='input-group' style='margin-top:5px'>" +
-            "<input type='text'  id='search_products' placeholder='Search Products' style='height:50px;font-size:20px'>" +
+            "<input type='text'  id='search_products' placeholder='Search Products' class='form-control-b' style='font-size:20px'>" +
             "<div class='input-group-addon search' id='search_link'>" +
-            "<img src='img/search.png' alt='Search Products' style='width:30px'> </div> </div>";
+            "<img src='img/search.png' alt='Search Products' style='width:20px'> </div> </div>";
     $("#product_category_card").html(html);
-    $("#search_link").click(function(){
+    $("#search_link").click(function () {
         app.allProducts(app.pages.sale);
     });
-    app.setUpAuto(app.context.product.fields.search_products);  
+    app.setUpAuto(app.context.product.fields.search_products);
 };
 
 App.prototype.sale = function(options){
@@ -566,4 +614,44 @@ App.prototype.clearSale = function(){
     $("#total_qty").html("0");
     $("#total_amount").html("0.00");
     app.getSetting("user_interface") === "desktop" ? app.loadSaleSearch() : app.loadCategories("category_area", "category","");  
+};
+
+
+App.prototype.quantityPicker = function(options){
+    var html =  "<div class = 'input-group' >"+
+                    "<input type = 'number' class = 'form-control-b' id = 'select_quantity' placeholder = 'Quantity' style='height : 60px' value=1 >"+
+                    "<div class = 'input-group-addon' style='padding:0px'>"+
+                       "<div class='toggle-button' style='background-color:green' id='increase_qty'> + </div>"+
+                       "<div class='toggle-button' style='background-color:red' id='decrease_qty'> - </div>"+
+                    "</div>"+
+                "</div>";
+    var m = app.ui.modal(html,"Quantity",{
+        okText : "Done",
+        ok : function(){
+            var qty = parseInt($("#select_quantity").val());
+            qty = qty <= 0 || !qty ? 1 : qty;
+            for(var x = 0; x < qty; x++){
+                app.sale({
+                    data: options.data,
+                    index: options.index,
+                    ids: options.data.ID
+                });
+            }
+            app.runLater(100, function () {
+                $("#search_products").val("");
+                $("#search_products").focus();
+            });
+            m.modal('hide');
+        }
+    });
+    $("#increase_qty").click(function(){
+        var qty = parseInt($("#select_quantity").val());
+        qty++;
+        $("#select_quantity").val(qty);
+    });
+    $("#decrease_qty").click(function(){
+        var qty = parseInt($("#select_quantity").val());
+        qty = qty <= 0 ? 1 : qty - 1;
+        $("#select_quantity").val(qty);
+    });
 };

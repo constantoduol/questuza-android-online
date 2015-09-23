@@ -5,9 +5,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.webkit.WebView;
 
-public class Database extends SQLiteOpenHelper{
+public class Database extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME="QUEST_DB";
 
@@ -24,7 +23,7 @@ public class Database extends SQLiteOpenHelper{
     @Override
     public void onCreate(SQLiteDatabase db) {
         //create the tables we will need currently
-        db.execSQL("create table LOCAL_DATA (KEY_STORAGE TEXT, VALUE_STORAGE TEXT)");
+        db.execSQL("create table LOCAL_DATA (KEY_STORAGE TEXT, VALUE_STORAGE TEXT)");//sql,  : value
     }
 
     @Override

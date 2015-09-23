@@ -78,19 +78,17 @@ AppData.prototype.formData = {
                         order_direction: "ASC",
                         limit: 10,
                         key: "PRODUCT_NAME",
+                        join_to_key: ["PRODUCT_QTY"],
+                        join_data: [],
                         data: {},
                         selected: [],
+                        cache_source : {message : "all_products",service : "pos_sale_service",filters : {category : "all"}},//search locally first
                         after: function (data, index) {
                             $("#category_area").html("");
                             $("#product_display_area").html("");
-                            app.sale({
-                                data: data,
-                                index: index,
-                                ids: data.ID
-                            });
-                            app.runLater(100, function () {
-                                $("#search_products").val("");
-                                $("#search_products").focus();
+                            app.quantityPicker({
+                                data : data,
+                                index : index
                             });
                         }
                     }}

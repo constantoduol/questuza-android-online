@@ -71,7 +71,7 @@ App.prototype.settings = {
     no_of_receipts: {
         type : "number",
         id : "no_of_receipts",
-        required : true,
+        required : false,
         value : 1,
         label : "No of receipts",
         "class" : "form-control-b"
@@ -79,7 +79,7 @@ App.prototype.settings = {
     receipt_header: {
         type : "text",
         id : "receipt_header",
-        required : true,
+        required : false,
         value : "",
         label : "Receipt Header",
         "class" : "form-control-b"
