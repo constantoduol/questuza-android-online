@@ -268,7 +268,7 @@ App.prototype.commitSale = function () {
                         app.showMessage(app.context.transact_success);
                     }
                     else if (resp.status === "fail") {
-                        app.showMessage(app.context.transact_fail);
+                        app.showMessage(resp.reason);
                     }
                 }
             });
@@ -484,6 +484,7 @@ App.prototype.loadSaleSearch = function () {
     $("#product_category_card").css("overflow", "inherit");
     $("#current_sale_card").css("height", heightSale + "px");
     var html = "<div class='input-group' style='margin-top:5px'>" +
+            "<div id='error_space_sale' class='error' ></div>"+
             "<input type='text'  id='search_products' placeholder='Search Products' class='form-control-b' style='font-size:20px'>" +
             "<div class='input-group-addon search' id='search_link'>" +
             "<img src='img/search.png' alt='Search Products' style='width:20px'> </div> </div>";
